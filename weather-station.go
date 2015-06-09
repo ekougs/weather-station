@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"path"
 	"time"
@@ -13,84 +12,98 @@ import (
 	"github.com/ekougs/weather-station/util"
 )
 
-type TempTime time.Time
-type Temp float64
+type tempTime time.Time
 
-type CityTemp struct {
+type cityTemp struct {
 	City string
-	Time TempTime
-	Temp Temp
+	Time tempTime
+	Temp int
 }
 
-const time_to_string_format = time.RFC1123
-const default_city = "NYC"
+const timeToStringFormat = time.RFC1123
+const defaultCity = "DKR"
 
 // THE PROGRAM ITSELF
 
 func main() {
-	application_path := os.Args[0]
-	application_dir := path.Dir(application_path)
+	applicationPath := os.Args[0]
+	applicationDir := path.Dir(applicationPath)
 	var err error
-	var utils util.TimeUtils
-	utils, err = util.New(application_dir + "/resources/cities.json")
+	var timeUtils util.TimeUtils
+	var dataUtils util.DataUtils
+
+	dataUtils, err = util.NewDataUtils(applicationDir + "/resources/cities.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	timeUtils, err = util.NewTimeUtils(dataUtils)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	city, formatted_date := init_flags(utils)
+	city, formattedDate := initFlags(timeUtils)
 
 	var date time.Time
 
-	date, err = utils.GetTime(*formatted_date, *city)
+	date, err = timeUtils.GetTime(*formattedDate, *city)
 	// Error handling is important
 	// A method often returns as last return value an error
+	ifErrorInformAndLeave(err)
+
+	var tempProvider util.TempProvider
+	tempProvider, err = util.NewTempProvider(dataUtils)
+	ifErrorInformAndLeave(err)
+
+	var temp int
+	temp, err = tempProvider.Get(*city, date)
+	ifErrorInformAndLeave(err)
+	obj := cityTemp{*city, tempTime(date), temp}
+
+	var cityTempJSON []byte
+	cityTempJSON, err = json.MarshalIndent(obj, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(string(cityTempJSON))
+}
+
+// HANDLE ERRORS
+func ifErrorInformAndLeave(err error) {
 	if err != nil {
 		fmt.Println(err)
 		flag.Usage()
 		os.Exit(1)
 	}
-
-	temp := Temp(rand.Float64()*5 + 20)
-	obj := CityTemp{*city, TempTime(date), temp}
-
-	var city_temp_json []byte
-	city_temp_json, err = json.MarshalIndent(obj, "", "    ")
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(string(city_temp_json))
 }
 
 // FLAGS INFORMATION AND RETRIEVAL
 
-func init_flags(utils util.TimeUtils) (city, formatted_date *string) {
+func initFlags(utils util.TimeUtils) (city, formattedDate *string) {
 	// Help making --help and retrieve flags
-	city = flag.String("c", default_city, "IATA code for city")
+	city = flag.String("c", defaultCity, "IATA code for city")
 
-	date_example := "Date format example : " + util.TIME_FORMAT
-	current_hour := utils.GetTimeWithoutMinuteSecondNano(time.Now())
-	formatted_date = flag.String("d", current_hour.Format(util.TIME_FORMAT), date_example)
+	dateExample := "Date format example : " + util.TimeFormat
+	currentHour := utils.GetTimeWithoutMinuteSecondNano(time.Now())
+	formattedDate = flag.String("d", currentHour.Format(util.TimeFormat), dateExample)
 
 	flag.Parse()
 
-	return city, formatted_date
+	return city, formattedDate
 }
 
 // HOW TO FORMAT
 
-func (obj CityTemp) String() string {
-	formatted_time := obj.Time.Format(time_to_string_format)
-	return fmt.Sprintf("%s %s %.1f", obj.City, formatted_time, obj.Temp)
+func (obj cityTemp) String() string {
+	formattedTime := obj.Time.Format(timeToStringFormat)
+	return fmt.Sprintf("%s %s %d", obj.City, formattedTime, obj.Temp)
 }
 
-func (our_time TempTime) Format(format string) string {
-	return time.Time(our_time).Format(format)
+// Format provides custom format for time
+func (ourTime tempTime) Format(format string) string {
+	return time.Time(ourTime).Format(format)
 }
 
-func (our_time TempTime) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + our_time.Format(util.TIME_FORMAT) + "\""), nil
-}
-
-func (temp Temp) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("%.2f", temp)), nil
+// MarshalJSON provides custom JSON marshaller for time
+func (ourTime tempTime) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + ourTime.Format(util.TimeFormat) + "\""), nil
 }
