@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -159,6 +160,20 @@ func (utils DataUtils) getCityFileName(city string) (string, error) {
 		return "", err
 	}
 	return cityFileName, nil
+}
+
+// GetCityCode used only by HTTP server
+func (utils DataUtils) GetCityCode(city string) (string, error) {
+	citiesData, err := utils.getCitiesData()
+	if err != nil {
+		return "", err
+	}
+	for _, cityData := range citiesData {
+		if strings.EqualFold(cityData.Code, city) || strings.EqualFold(cityData.Name, city) {
+			return cityData.Code, nil
+		}
+	}
+	return "", fmt.Errorf("Have not found city %s", city)
 }
 
 func (utils DataUtils) getCityCode(city string) (string, error) {

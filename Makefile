@@ -18,9 +18,12 @@ weather-station: weather-station.go test
 	@echo "Building exec..."
 	@go build
 
-test: check_init
+test: dependencies
 	@echo "Running tests..."
 	@go test -v ./...
+
+dependencies: check_init
+	@go get "github.com/gorilla/mux"
 
 clean:
 	@rm weather-station
