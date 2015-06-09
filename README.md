@@ -8,7 +8,7 @@ Each step is a tag "Step \# : description of step with features introduced"
 [Set your GOPATH](https://golang.org/doc/code.html#GOPATH)  
 Clone the repository in `$GOPATH/src/com.github/ekougs`  
 
-To build the application, here are the  available alternatives:
+To build the application:
 ####Run `make` command.
 It will install the application in `$GOPATH/bin/weather-station/`.
 

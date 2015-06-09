@@ -24,6 +24,15 @@ type cityData struct {
 
 type citiesData []cityData
 
+// City represents city's name and IATA code
+type City struct {
+	Name string `json:"name"`
+	Code string `json:"iata_code"`
+}
+
+// Cities is a set of City
+type Cities []City
+
 // DataUtils is the component used to manipulate local data
 type DataUtils struct {
 	citiesFile  string
@@ -48,6 +57,23 @@ func NewDataUtils(citiesFile string) (DataUtils, error) {
 		return dataUtilsNil, fmt.Errorf("No such file or directory: %s", citiesFile)
 	}
 	return DataUtils{citiesFile: citiesFile, tempsByCity: make(map[string]temps)}, nil
+}
+
+// GetCities returns all cities handled by the application
+func (utils DataUtils) GetCities() (Cities, error) {
+	citiesData, err := utils.getCitiesData()
+	if err != nil {
+		return Cities{}, nil
+	}
+	cities := Cities{}
+	for _, cityData := range citiesData {
+		cities = append(cities, City{cityData.Name, cityData.Code})
+	}
+	return cities, nil
+}
+
+func (city City) String() string {
+	return "(" + city.Code + " or " + city.Name + ")"
 }
 
 func (utils DataUtils) getCitiesData() (citiesData, error) {

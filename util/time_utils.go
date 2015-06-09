@@ -71,6 +71,7 @@ func isFoundOnce(curRegexp *regexp.Regexp, stringToMatch string) bool {
 	return len(curRegexp.FindAllIndex([]byte(stringToMatch), -1)) == 1
 }
 
+// GetTimeWithoutMinuteSecondNano returns the time you provide without minutes, seconds or nanos
 func (TimeUtils) GetTimeWithoutMinuteSecondNano(input time.Time) time.Time {
 	return getTimeWithoutMinuteSecondNano(input, input.Location())
 }
@@ -100,5 +101,5 @@ func (utils TimeUtils) getIANATimezone(cityStr string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("We have no data for city '%s'.", cityStr)
+	return "", fmt.Errorf("No data for city '%s'.", cityStr)
 }

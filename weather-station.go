@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/ekougs/weather-station/util"
@@ -21,7 +22,7 @@ type cityTemp struct {
 }
 
 const timeToStringFormat = time.RFC1123
-const defaultCity = "DKR"
+const defaultCity = "NYC"
 
 // THE PROGRAM ITSELF
 
@@ -41,7 +42,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	city, formattedDate := initFlags(timeUtils)
+	city, formattedDate := initFlags(timeUtils, dataUtils)
 
 	var date time.Time
 
@@ -78,11 +79,21 @@ func ifErrorInformAndLeave(err error) {
 
 // FLAGS INFORMATION AND RETRIEVAL
 
-func initFlags(utils util.TimeUtils) (city, formattedDate *string) {
+func initFlags(utils util.TimeUtils, dataUtils util.DataUtils) (city, formattedDate *string) {
 	// Help making --help and retrieve flags
-	city = flag.String("c", defaultCity, "IATA code for city")
+	cities, err := dataUtils.GetCities()
+	if err != nil {
+		panic(err)
+	}
+	citiesToString := make([]string, 0, len(cities))
+	for _, city := range cities {
+		citiesToString = append(citiesToString, city.String())
+	}
 
-	dateExample := "Date format example : " + util.TimeFormat
+	citiesHelpMessage := fmt.Sprintf("IATA code or name for city in : %s", strings.Join(citiesToString, ", "))
+	city = flag.String("c", defaultCity, citiesHelpMessage)
+
+	dateExample := "Date format example : 2006-01-02T15:04:05"
 	currentHour := utils.GetTimeWithoutMinuteSecondNano(time.Now())
 	formattedDate = flag.String("d", currentHour.Format(util.TimeFormat), dateExample)
 
