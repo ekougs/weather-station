@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Paris",
+    "iata_code": "PAR",
+    "iana_timezone": "Europe/Paris"
+  },
+  {
+    "name": "New York",
+    "iata_code": "NYC",
+    "iana_timezone": "America/New_York"
+  },
+  {
+    "name": "Dakar",
+    "iata_code": "DKR",
+    "iana_timezone": "Africa/Dakar"
+  },
+  {
+    "name": "Abidjan",
+    "iata_code": "ABJ",
+    "iana_timezone": "Africa/Abidjan"
+  },
+  {
+    "name": "Johannesburg",
+    "iata_code": "JNB",
+    "iana_timezone": "Africa/Johannesburg"
+  },
+  {
+    "name": "Barcelona",
+    "iata_code": "BCN",
+    "iana_timezone": "Europe/Madrid"
+  }
+]
