@@ -1,21 +1,21 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"strings"
 	"time"
 
+	"github.com/ekougs/weather-station/cli"
+	"github.com/ekougs/weather-station/server"
 	"github.com/ekougs/weather-station/util"
 )
 
-const defaultCity = "NYC"
+const defaultCity = "DKR"
 
-// THE PROGRAM ITSELF
+// THE PROGRAM ENTRY
 
 func main() {
 	applicationPath := os.Args[0]
@@ -23,69 +23,40 @@ func main() {
 	var err error
 	var timeUtils util.TimeUtils
 	var dataUtils util.DataUtils
+	var tempProvider util.TempProvider
 
 	dataUtils, err = util.NewDataUtils(applicationDir + "/resources/cities.json")
-	if err != nil {
-		log.Fatal(err)
-	}
-	timeUtils, err = util.NewTimeUtils(dataUtils)
-	if err != nil {
-		log.Fatal(err)
-	}
+	cli.IfErrorInformAndLeave(err)
 
-	city, formattedDate, duration := initFlags(timeUtils, dataUtils)
+	timeUtils, err = util.NewTimeUtils(dataUtils)
+	cli.IfErrorInformAndLeave(err)
+
+	tempProvider, err = util.NewTempProvider(dataUtils)
+	cli.IfErrorInformAndLeave(err)
+
+	city, formattedDate, duration, serverMode := initFlags(timeUtils, dataUtils)
+
+	if *serverMode {
+		weatherServer := server.NewWeatherServer(tempProvider, timeUtils, dataUtils)
+		weatherServer.LaunchServer()
+		os.Exit(0)
+	}
 
 	var date time.Time
 
 	date, err = timeUtils.GetTime(*formattedDate, *city)
 	// Error handling is important
 	// A method often returns as last return value an error
-	ifErrorInformAndLeave(err)
-
-	var tempProvider util.TempProvider
-	tempProvider, err = util.NewTempProvider(dataUtils)
-	ifErrorInformAndLeave(err)
+	cli.IfErrorInformAndLeave(err)
 
 	*duration = strings.TrimSpace(*duration)
-	if "" == *duration {
-		var temp int
-		temp, err = tempProvider.Get(*city, date)
-		ifErrorInformAndLeave(err)
-		cityTemp := util.CityTemp{City: *city, Time: util.TempTime(date), Temp: temp}
-
-		var cityTempJSON []byte
-		cityTempJSON, err = json.MarshalIndent(cityTemp, "", "    ")
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println(string(cityTempJSON))
-	} else {
-		// Duration has been provided
-		datesChan, err := timeUtils.GetDatesForPeriod(date, *duration)
-		ifErrorInformAndLeave(err)
-		cityTemps := tempProvider.GetForDates(*city, datesChan)
-
-		var cityTempsJSON []byte
-		cityTempsJSON, err = json.MarshalIndent(cityTemps, "", "    ")
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println(string(cityTempsJSON))
-	}
-}
-
-// HANDLE ERRORS
-func ifErrorInformAndLeave(err error) {
-	if err != nil {
-		fmt.Println(err)
-		flag.Usage()
-		os.Exit(1)
-	}
+	cliInstrHandler := cli.NewCLIInstructionHandler(*city, date, *duration)
+	cliInstrHandler.PrintResponse(tempProvider, timeUtils)
 }
 
 // FLAGS INFORMATION AND RETRIEVAL
 
-func initFlags(utils util.TimeUtils, dataUtils util.DataUtils) (city, formattedDate, duration *string) {
+func initFlags(utils util.TimeUtils, dataUtils util.DataUtils) (city, formattedDate, duration *string, serverMode *bool) {
 	// Help making --help and retrieve flags
 	cities, err := dataUtils.GetCities()
 	if err != nil {
@@ -106,7 +77,9 @@ func initFlags(utils util.TimeUtils, dataUtils util.DataUtils) (city, formattedD
 	durationHelpMessage := "Expecting duration like 1Y3M2D, 1Y2M, 3M2D or 3D"
 	duration = flag.String("D", "", durationHelpMessage)
 
+	serverMode = flag.Bool("s", false, "Launch HTTP server on port 1987 and ignore other flags")
+
 	flag.Parse()
 
-	return city, formattedDate, duration
+	return city, formattedDate, duration, serverMode
 }
