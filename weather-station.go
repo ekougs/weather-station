@@ -13,15 +13,6 @@ import (
 	"github.com/ekougs/weather-station/util"
 )
 
-type tempTime time.Time
-
-type cityTemp struct {
-	City string
-	Time tempTime
-	Temp int
-}
-
-const timeToStringFormat = time.RFC1123
 const defaultCity = "NYC"
 
 // THE PROGRAM ITSELF
@@ -42,7 +33,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	city, formattedDate := initFlags(timeUtils, dataUtils)
+	city, formattedDate, duration := initFlags(timeUtils, dataUtils)
 
 	var date time.Time
 
@@ -55,17 +46,32 @@ func main() {
 	tempProvider, err = util.NewTempProvider(dataUtils)
 	ifErrorInformAndLeave(err)
 
-	var temp int
-	temp, err = tempProvider.Get(*city, date)
-	ifErrorInformAndLeave(err)
-	obj := cityTemp{*city, tempTime(date), temp}
+	*duration = strings.TrimSpace(*duration)
+	if "" == *duration {
+		var temp int
+		temp, err = tempProvider.Get(*city, date)
+		ifErrorInformAndLeave(err)
+		cityTemp := util.CityTemp{City: *city, Time: util.TempTime(date), Temp: temp}
 
-	var cityTempJSON []byte
-	cityTempJSON, err = json.MarshalIndent(obj, "", "    ")
-	if err != nil {
-		log.Fatal(err)
+		var cityTempJSON []byte
+		cityTempJSON, err = json.MarshalIndent(cityTemp, "", "    ")
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(string(cityTempJSON))
+	} else {
+		// Duration has been provided
+		datesChan, err := timeUtils.GetDatesForPeriod(date, *duration)
+		ifErrorInformAndLeave(err)
+		cityTemps := tempProvider.GetForDates(*city, datesChan)
+
+		var cityTempsJSON []byte
+		cityTempsJSON, err = json.MarshalIndent(cityTemps, "", "    ")
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(string(cityTempsJSON))
 	}
-	fmt.Println(string(cityTempJSON))
 }
 
 // HANDLE ERRORS
@@ -79,7 +85,7 @@ func ifErrorInformAndLeave(err error) {
 
 // FLAGS INFORMATION AND RETRIEVAL
 
-func initFlags(utils util.TimeUtils, dataUtils util.DataUtils) (city, formattedDate *string) {
+func initFlags(utils util.TimeUtils, dataUtils util.DataUtils) (city, formattedDate, duration *string) {
 	// Help making --help and retrieve flags
 	cities, err := dataUtils.GetCities()
 	if err != nil {
@@ -97,24 +103,10 @@ func initFlags(utils util.TimeUtils, dataUtils util.DataUtils) (city, formattedD
 	currentHour := utils.GetTimeWithoutMinuteSecondNano(time.Now())
 	formattedDate = flag.String("d", currentHour.Format(util.TimeFormat), dateExample)
 
+	durationHelpMessage := "Expecting duration like 1Y3M2D, 1Y2M, 3M2D or 3D"
+	duration = flag.String("D", "", durationHelpMessage)
+
 	flag.Parse()
 
-	return city, formattedDate
-}
-
-// HOW TO FORMAT
-
-func (obj cityTemp) String() string {
-	formattedTime := obj.Time.Format(timeToStringFormat)
-	return fmt.Sprintf("%s %s %d", obj.City, formattedTime, obj.Temp)
-}
-
-// Format provides custom format for time
-func (ourTime tempTime) Format(format string) string {
-	return time.Time(ourTime).Format(format)
-}
-
-// MarshalJSON provides custom JSON marshaller for time
-func (ourTime tempTime) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + ourTime.Format(util.TimeFormat) + "\""), nil
+	return city, formattedDate, duration
 }

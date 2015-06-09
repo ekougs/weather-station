@@ -22,14 +22,21 @@ func TestGetCitiesList(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	expectedCities := Cities{City{"Abidjan", "ABJ"}, City{"Barcelona", "BCN"}, City{"Dakar", "DK"}, City{"Johannesburg", "JNB"}, City{"New York", "NYC"}, City{"Paris", "PAR"}}
+	expectedCities := Cities{City{"Dakar", "DK"}, City{"New York", "NYC"}, City{"Paris", "PAR"}}
 	assertEquals(cities, expectedCities, t)
 }
 
 func assertEquals(actual, expected Cities, t *testing.T) {
+	sort.Sort(actual)
+	sort.Sort(expected)
 	for _, city := range actual {
 		if !contains(expected, city) {
-			t.Errorf("City %s has not been found.", city.Name)
+			t.Errorf("City %s has not been found in expected.", city.Name)
+		}
+	}
+	for _, city := range expected {
+		if !contains(actual, city) {
+			t.Errorf("City %s has not been found in actual.", city.Name)
 		}
 	}
 }
